@@ -1,0 +1,16 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+E:/just ice/Compiling principle/finite-automaton/RE_to_finite-automaton/main.cpp
+iostream
+-
+vector
+-
+string
+-
+
