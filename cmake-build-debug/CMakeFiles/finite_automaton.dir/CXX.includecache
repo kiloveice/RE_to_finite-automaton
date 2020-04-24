@@ -13,4 +13,12 @@ vector
 -
 string
 -
+stack
+-
+map
+-
+queue
+-
+set
+-
 
