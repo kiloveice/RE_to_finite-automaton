@@ -5,6 +5,7 @@
 #include <map>
 #include <queue>
 #include <set>
+#include <stack>
 
 using namespace std;
 
@@ -22,7 +23,17 @@ public:
         this->c = c;
         this->v = v;
     }
+
+
 };
+
+bool operator<(const Edge &a, const Edge &b) {
+    if (a.c != b.c) {
+        return a.c < b.c;
+    }
+    //return (long long int) a.v < (long long int) b.v;
+    return a.v < b.v;
+}
 
 class Fa_Node {
 public:
@@ -66,12 +77,20 @@ public:
 
     void print();
 
+    void Nfa_to_without_empty_trans();
+
+    void
+    dfs_del_loop(int now, int &_index, stack<int> &stk, vector<int> &dfn, vector<int> &low, vector<int> &belong);
+
 private:
     void and_merge(Nfa &a, char type);
 
     void or_merge(Nfa &a);
 
     void m_merge();
+
+    vector<Fa_Node *> Node;
+    vector<bool> used;
 };
 
 void Nfa::and_merge(Nfa &a, char type = '\0') {
@@ -98,6 +117,8 @@ void Nfa::or_merge(Nfa &a) {
 
     begin = ts;
     end = te;
+
+    n = n + a.n + 2;
 }
 
 void Nfa::m_merge() {
@@ -115,6 +136,8 @@ void Nfa::m_merge() {
 
     begin = ts;
     end = te;
+
+    n = n + 2;
 }
 
 bool check_re(char c) {
@@ -232,37 +255,44 @@ void Nfa::Re_to_Nfa(string &str) {
     Nfa_s.pop();
 
     all_char.insert('\0');
+    this->renumber();
 }
 
 void Nfa::renumber() {
-    //Fa_Node temp must be false
+    //Fa_Node temp must be same
     queue<Fa_Node *> p;
     int cnt = 1;
     p.push(begin);
-
+    bool usedflag = !begin->temp;
+    Node.clear();
+    used.clear();
+    Node.resize(n + 1);
+    used.resize(n + 1);
     while (!p.empty()) {
         Fa_Node *now = p.front();
         p.pop();
-        if (now->temp) {
+        if (now->temp == usedflag) {
             continue;
         }
-        now->temp = true;
+        now->temp = usedflag;
         now->n = cnt;
         cnt++;
+        Node[now->n] = now;
         for (auto i:now->edge) {
             p.push(i.v);
         }
     }
-    n = cnt - 1;
 }
 
 void Nfa::print() {
-    //out Fa_Node temp must be true
+    //output NFA
     this->renumber();
     queue<Fa_Node *> p;
     p.push(begin);
     set<char> sc;
     map<char, set<int>> trans;
+
+    bool usedflag = !begin->temp;
 
     cout << "S,E,N,";
     for (auto i:all_char) {
@@ -277,10 +307,10 @@ void Nfa::print() {
     while (!p.empty()) {
         Fa_Node *now = p.front();
         p.pop();
-        if (!now->temp) {
+        if (now->temp == usedflag) {
             continue;
         }
-        now->temp = false;
+        now->temp = usedflag;
         for (auto i:now->edge) {
             p.push(i.v);
             trans[i.c].insert(i.v->n);
@@ -314,13 +344,175 @@ void Nfa::print() {
     }
 }
 
+void Nfa::Nfa_to_without_empty_trans() {//delete empty transfer,begin and end fail
+    set<Edge> edge_tp;
+
+    vector<int> dfn(n + 1);
+    vector<int> low(n + 1);
+    vector<int> belong(n + 1);
+    for (int i = 0; i <= n; i++) {
+        dfn[i] = 0;
+        low[i] = 0;
+        used[i] = false;
+        belong[i] = i;
+    }
+    int _index = 1;
+    //tarjan delete loop and expand start and end
+    stack<int> stk;
+    for (int i = 1; i <= n; i++) {
+        if (!dfn[i]) {
+            dfs_del_loop(i, _index, stk, dfn, low, belong);
+        }
+    }
+    //rebuild edges
+    for (int i = 1; i <= n; i++) {
+        for (auto j:Node[i]->edge) {
+            if (belong[i] == belong[j.v->n] && (j.c == '\0')) {
+                continue;
+            }
+            Node[belong[i]]->edge.emplace_back(Node[belong[j.v->n]], j.c);
+        }
+    }
+    //unique edges
+    for (int i = 1; i <= n; i++) {
+        if (belong[i] != i) {
+            delete Node[i];
+            continue;
+        }
+        edge_tp.clear();
+        for (auto j:Node[i]->edge) {
+            edge_tp.insert(j);
+        }
+        Node[i]->edge.clear();
+        for (auto j:edge_tp) {
+            Node[i]->edge.push_back(j);
+        }
+    }
+    this->renumber();
+    dfn.clear();
+    low.clear();
+    belong.clear();
+
+    //reverse graph
+    vector<int> in(n + 1);
+    vector<int> to[n + 1];
+    for (int i = 0; i <= n; i++) {
+        in[i] = 0;
+        used[i] = false;
+    }
+    for (int i = 1; i <= n; i++) {
+        for (auto j:Node[i]->edge) {
+            if (j.c == '\0') {
+                to[j.v->n].push_back(i);
+                in[j.v->n]++;
+            }
+        }
+    }
+
+    //topological sorting
+    queue<int> q;
+    int cnt = 1;
+    while (cnt != 0) {
+        cnt = 0;
+        for (int i = 1; i <= n; i++) {
+            if (used[i]) {
+                continue;
+            }
+            if (in[i] == 0) {
+                cnt++;
+                used[i] = true;
+                q.push(i);
+                for (int j:to[i]) {
+                    in[j]--;
+                }
+            }
+        }
+    }
+
+    //expand empty transfer
+    while (!q.empty()) {
+        int u = q.front();
+        q.pop();
+        edge_tp.clear();
+        for (auto i:Node[u]->edge) {
+            if (i.c != '\0') {
+                continue;
+            }
+            for (auto j:i.v->edge) {
+                edge_tp.insert(j);
+            }
+        }
+        for (auto i:edge_tp) {
+            Node[u]->edge.push_back(i);
+        }
+    }
+
+    //unique edges and delete empty transfer
+    for (int i = 1; i <= n; i++) {
+        edge_tp.clear();
+        for (auto j:Node[i]->edge) {
+            if (j.c != '\0') {
+                edge_tp.insert(j);
+            }
+        }
+        Node[i]->edge.clear();
+        for (auto j:edge_tp) {
+            Node[i]->edge.push_back(j);
+        }
+    }
+
+}
+
+void
+Nfa::dfs_del_loop(int now, int &_index, stack<int> &stk, vector<int> &dfn, vector<int> &low,
+                  vector<int> &belong) {
+    low[now] = dfn[now] = _index;
+    _index++;
+    stk.push(now);
+    used[now] = true;
+    for (auto i:Node[now]->edge) {
+        if (i.c != '\0') {
+            continue;
+        }
+        if (Node[now]->start) {
+            Node[i.v->n]->start = true;
+        }
+        //start expand
+        if (!dfn[i.v->n]) {
+            dfs_del_loop(i.v->n, _index, stk, dfn, low, belong);
+            low[now] = min(low[now], low[i.v->n]);
+        } else if (used[i.v->n]) {
+            low[now] = min(low[now], dfn[i.v->n]);
+        }
+        if (Node[i.v->n]->end) {
+            Node[now]->end = true;
+        }
+        //end expand
+    }
+    if (dfn[now] == low[now]) {
+        while (!stk.empty()) {
+            int u = stk.top();
+            stk.pop();
+            used[u] = false;
+            belong[u] = now;
+
+            Node[now]->start = Node[now]->start || Node[u]->start;
+            Node[now]->end = Node[now]->end || Node[u]->end;
+
+            if (u == now) {
+                break;
+            }
+        }
+    }
+}
+
 int main() {
-    freopen("E:\\just ice\\Compiling principle\\finite-automaton\\out.csv", "w", stdout);
+    //freopen("E:\\just ice\\Compiling principle\\finite-automaton\\out.csv", "w", stdout);
     string s;
     Nfa nfa;
     cin >> s;
     nfa.Re_to_Nfa(s);
-    nfa.renumber();
+    nfa.Nfa_to_without_empty_trans();
     nfa.print();
     return 0;
 }
