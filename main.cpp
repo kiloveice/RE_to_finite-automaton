@@ -645,13 +645,11 @@ void Dfa::Nfa_to_Dfa(Nfa &nfa) {//NFA -> DFA
     num.push_back(tp_num);
     strat_flag = false, end_flag = false;
     for (auto i:tp_num.n) {
-        if (nfa.Node[i]->start) {
-            strat_flag = true;
-        }
         if (nfa.Node[i]->end) {
             end_flag = true;
         }
     }
+    strat_flag = true;
     tp_Node = new Fa_Node(tot, strat_flag, end_flag);
     Node.push_back(tp_Node);
 
@@ -680,9 +678,6 @@ void Dfa::Nfa_to_Dfa(Nfa &nfa) {//NFA -> DFA
                 num.push_back(tp_num);
                 strat_flag = false, end_flag = false;
                 for (auto j:tp_num.n) {
-                    if (nfa.Node[j]->start) {
-                        strat_flag = true;
-                    }
                     if (nfa.Node[j]->end) {
                         end_flag = true;
                     }
