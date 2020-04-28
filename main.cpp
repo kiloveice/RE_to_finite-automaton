@@ -14,6 +14,32 @@ set<char> all_char;
 
 class Fa_Node;
 
+class Dfa;
+
+class Node_num {
+public:
+    set<int> n;
+
+//    Node_num(set<int> &s) {
+//        for (auto i:s) {
+//            n.insert(i);
+//        }
+//    }
+};
+
+bool operator<(const Node_num &a, const Node_num &b) {
+    if (a.n.size() != b.n.size()) {
+        return a.n.size() < b.n.size();
+    }
+    for (auto i = a.n.begin(), j = b.n.begin(); i != a.n.end() && j != b.n.end(); i++, j++) {
+        if ((*i) != (*j)) {
+            return (*i) < (*j);
+        }
+    }
+    return false;
+}
+
+
 class Edge {
 public:
     char c;
@@ -23,8 +49,6 @@ public:
         this->c = c;
         this->v = v;
     }
-
-
 };
 
 bool operator<(const Edge &a, const Edge &b) {
@@ -71,6 +95,8 @@ public:
     ~Nfa() {
     }
 
+    friend class Dfa;
+
     void Re_to_Nfa(string &str);
 
     void renumber();
@@ -81,6 +107,7 @@ public:
 
     void
     dfs_del_loop(int now, int &_index, stack<int> &stk, vector<int> &dfn, vector<int> &low, vector<int> &belong);
+
 
 private:
     void and_merge(Nfa &a, char type);
@@ -368,6 +395,7 @@ void Nfa::Nfa_to_without_empty_trans() {//delete empty transfer,begin and end fa
     for (int i = 1; i <= n; i++) {
         for (auto j:Node[i]->edge) {
             if (belong[i] == belong[j.v->n] && (j.c == '\0')) {
+                n--;
                 continue;
             }
             Node[belong[i]]->edge.emplace_back(Node[belong[j.v->n]], j.c);
@@ -506,6 +534,197 @@ Nfa::dfs_del_loop(int now, int &_index, stack<int> &stk, vector<int> &dfn, vecto
     }
 }
 
+class Dfa {
+public:
+    vector<Fa_Node *> begin, end;
+    int n;
+
+    Dfa() {
+        begin.clear();
+        end.clear();
+        Node.clear();
+        used.clear();
+        n = 0;
+    }
+
+    Dfa(Dfa &a) {
+        begin = a.begin;
+        end = a.end;
+        n = a.n;
+        Node = a.Node;
+        used = a.used;
+    }
+
+    void print();
+
+    void Nfa_to_Dfa(Nfa &nfa);
+
+private:
+    vector<Fa_Node *> Node;
+    vector<bool> used;
+
+    void dfs_del_useless(int now, bool okflag);
+};
+
+void Dfa::print() {
+    //output DFA
+
+    cout << "S,E,N,";
+    for (auto i:all_char) {
+        if (i != '\0') {
+            cout << i << ",";
+        }
+    }
+    cout << endl;
+    bool first = true;
+    for (auto i:Node) {
+        if (first) {
+            first = false;
+            continue;
+        }
+        if (i->start) {
+            cout << "+,";
+        } else {
+            cout << ",";
+        }
+        if (i->end) {
+            cout << "-,";
+        } else {
+            cout << ",";
+        }
+        cout << i->n << ",";
+        for (auto j:all_char) {
+            if (j == '\0') {
+                continue;
+            }
+            for (auto k:i->edge) {
+                if (k.c == j) {
+                    cout << k.v->n;
+                    break;
+                }
+            }
+            cout << ",";
+        }
+        cout << endl;
+    }
+
+}
+
+void Dfa::Nfa_to_Dfa(Nfa &nfa) {//NFA -> DFA
+    //DFA Node and used vector
+
+    Node.clear();
+    used.clear();
+    begin.clear();
+    end.clear();
+
+    Node.resize(1);
+
+    vector<Node_num> num;
+    map<Node_num, int> trans;
+    //DFA Node num trans to NFA Node num
+
+    num.resize(1);
+
+    int tot = 1;
+    int now = 1;
+
+    Node_num tp_num;
+    Fa_Node *tp_Node;
+    bool strat_flag = false, end_flag = false;
+
+    //find start Node
+    for (int i = 1; i <= nfa.n; i++) {
+        if (nfa.Node[i]->start) {
+            tp_num.n.insert(i);
+        }
+    }
+
+    //insert start Node
+    trans[tp_num] = tot;
+    num.push_back(tp_num);
+    strat_flag = false, end_flag = false;
+    for (auto i:tp_num.n) {
+        if (nfa.Node[i]->start) {
+            strat_flag = true;
+        }
+        if (nfa.Node[i]->end) {
+            end_flag = true;
+        }
+    }
+    tp_Node = new Fa_Node(tot, strat_flag, end_flag);
+    Node.push_back(tp_Node);
+
+    tot++;
+    while (now < tot) {
+        for (auto i:all_char) {// char
+            if (i == '\0') {
+                continue;
+            }
+            tp_num.n.clear();
+            for (auto j:num[now].n) {// NFA Node num
+                for (auto k:nfa.Node[j]->edge) {//Node edge
+                    if (k.c == i) {
+                        tp_num.n.insert(k.v->n);
+                        break;
+                    }
+                }
+            }
+            if (tp_num.n.empty()) {// edge does not exist
+                continue;
+            }
+            if (trans.find(tp_num) != trans.end()) {// Node has been created
+                Node[now]->edge.emplace_back(Node[trans[tp_num]], i);
+            } else {// creat Node
+                trans[tp_num] = tot;
+                num.push_back(tp_num);
+                strat_flag = false, end_flag = false;
+                for (auto j:tp_num.n) {
+                    if (nfa.Node[j]->start) {
+                        strat_flag = true;
+                    }
+                    if (nfa.Node[j]->end) {
+                        end_flag = true;
+                    }
+                }
+                tp_Node = new Fa_Node(tot, strat_flag, end_flag);
+                Node.push_back(tp_Node);
+
+                Node[now]->edge.emplace_back(tp_Node, i);
+                tot++;
+            }
+        }
+        now++;
+    }
+
+    //update n  begin   end
+    n = tot - 1;
+    for (int i = 1; i <= n; i++) {
+        if (Node[i]->start) {
+            begin.push_back(Node[i]);
+        }
+        if (Node[i]->end) {
+            end.push_back(Node[i]);
+        }
+    }
+}
+
+void Dfa::dfs_del_useless(int now, bool okflag) {
+    if (used[now]) {
+        return;
+    }
+    used[now] = true;
+    if (Node[now]->end) {
+        Node[now]->temp = okflag;
+    }
+    for (auto i:Node[now]->edge) {
+        dfs_del_useless(i.v->n, okflag);
+        if (Node[i.v->n]->temp == okflag) {
+            Node[now]->temp = okflag;
+        }
+    }
+}
+
 int main() {
     //freopen("E:\\just ice\\Compiling principle\\finite-automaton\\out.csv", "w", stdout);
     string s;
@@ -513,6 +732,11 @@ int main() {
     cin >> s;
     nfa.Re_to_Nfa(s);
     nfa.Nfa_to_without_empty_trans();
-    nfa.print();
+    //nfa.print();
+
+    Dfa dfa;
+    dfa.Nfa_to_Dfa(nfa);
+    dfa.print();
+
     return 0;
 }
