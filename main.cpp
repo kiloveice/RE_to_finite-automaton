@@ -393,7 +393,9 @@ void Nfa::Nfa_to_without_empty_trans() {//delete empty transfer,begin and end fa
     }
     //rebuild edges
     for (int i = 1; i <= n; i++) {
-        for (auto j:Node[i]->edge) {
+        int tp = Node[i]->edge.size();
+        for (int k = 0; k < tp; k++) {
+            auto &j = Node[i]->edge[k];
             if (belong[i] == belong[j.v->n] && (j.c == '\0')) {
                 n--;
                 continue;
@@ -432,7 +434,7 @@ void Nfa::Nfa_to_without_empty_trans() {//delete empty transfer,begin and end fa
         for (auto j:Node[i]->edge) {
             if (j.c == '\0') {
                 to[j.v->n].push_back(i);
-                in[j.v->n]++;
+                in[i]++;
             }
         }
     }
@@ -721,7 +723,7 @@ void Dfa::dfs_del_useless(int now, bool okflag) {
 }
 
 int main() {
-    //freopen("E:\\just ice\\Compiling principle\\finite-automaton\\out.csv", "w", stdout);
+    freopen("E:\\just ice\\Compiling principle\\finite-automaton\\out.csv", "w", stdout);
     string s;
     Nfa nfa;
     cin >> s;
