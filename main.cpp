@@ -561,6 +561,8 @@ public:
 
     void Nfa_to_Dfa(Nfa &nfa);
 
+    void min_Dfa();
+
 private:
     vector<Fa_Node *> Node;
     vector<bool> used;
@@ -666,7 +668,7 @@ void Dfa::Nfa_to_Dfa(Nfa &nfa) {//NFA -> DFA
                 for (auto k:nfa.Node[j]->edge) {//Node edge
                     if (k.c == i) {
                         tp_num.n.insert(k.v->n);
-                        break;
+                        continue;
                     }
                 }
             }
@@ -722,6 +724,147 @@ void Dfa::dfs_del_useless(int now, bool okflag) {
     }
 }
 
+void Dfa::min_Dfa() {
+    used.resize(n + 1);
+    for (auto i:used) {
+        i = false;
+    }
+    //delete useless node
+    bool okflag = !Node[1]->temp;
+    for (auto i:begin) {
+        if (!used[i->n]) {
+            dfs_del_useless(i->n, okflag);
+        }
+    }
+
+    vector<int> belong(n + 1);
+    for (int i = 1; i <= n; i++) {
+        if (Node[i]->temp == okflag) {
+            if (Node[i]->end) {
+                belong[i] = 2;
+            } else {
+                belong[i] = 1;
+            }
+        } else {
+            belong[i] = 0;
+        }
+    }
+
+    vector<set<int>> new_node_set(3);
+    vector<Fa_Node *> new_Node;
+
+    new_Node.push_back(NULL);
+
+    map<Node_num, set<int>> mp;
+    Node_num to_tp;
+    set<int> node_tp;
+    //reach node set -> node set
+    int last_tot, tot;
+    tot = 2;
+    last_tot = 0;
+    //end node set  and not end node set
+    for (int i = 1; i <= n; i++) {
+        if (Node[i]->temp == okflag) {
+            if (Node[i]->end) {
+                new_node_set[2].insert(Node[i]->n);
+            } else {
+                new_node_set[1].insert(Node[i]->n);
+            }
+        }
+    }
+
+    while (last_tot != tot) {
+        last_tot = tot;
+        for (int i = 1; i <= last_tot; i++) {//all node set
+            mp.clear();
+            //node_tp.clear();
+            for (auto j:new_node_set[i]) {//every node
+                to_tp.n.clear();
+                for (auto k:Node[j]->edge) {//every edge
+                    if (k.v->temp == okflag) {
+                        to_tp.n.insert(belong[k.v->n]);
+                    }
+                }
+                mp[to_tp].insert(j);
+            }
+            //update node set
+            int tp_cnt = 0;
+            for (const auto &j:mp) {
+                if (tp_cnt == 0) {
+                    new_node_set[i].clear();
+                    new_node_set[i] = j.second;
+                    tp_cnt++;
+                } else {
+                    tot++;
+                    new_node_set.push_back(j.second);
+                }
+            }
+        }
+        //update belong
+        for (int i = 1; i <= tot; i++) {
+            for (auto j:new_node_set[i]) {
+                belong[j] = i;
+            }
+        }
+    }
+
+    //rebuild DFA
+    new_Node.resize(tot + 1);
+    for (int i = 1; i <= tot; i++) {
+        new_Node[i] = new Fa_Node(i);
+    }
+
+    begin.clear();
+    end.clear();
+
+    for (int q = 1; q <= tot; q++) {
+        int i = belong[q];
+        for (auto j:new_node_set[i]) {
+            if (Node[j]->start) {
+                new_Node[i]->start = true;
+                begin.push_back(new_Node[i]);
+            }
+            if (Node[j]->end) {
+                new_Node[i]->end = true;
+                end.push_back(new_Node[i]);
+            }
+            for (auto k:Node[j]->edge) {
+                if (k.v->temp == okflag) {
+                    new_Node[i]->edge.emplace_back(new_Node[belong[k.v->n]], k.c);
+                }
+            }
+        }
+    }
+
+    //delete DFA
+
+    for (int i = 1; i <= n; i++) {
+        delete Node[i];
+    }
+
+    //update DFA
+    Node.clear();
+    Node = new_Node;
+    n = tot;
+
+    set<Edge> edge_tp;
+    //unique edges
+    for (int i = 1; i <= n; i++) {
+//        if (belong[i] != i) {
+//            delete Node[i];
+//            continue;
+//        }
+        edge_tp.clear();
+        for (auto j:Node[i]->edge) {
+            edge_tp.insert(j);
+        }
+        Node[i]->edge.clear();
+        for (auto j:edge_tp) {
+            Node[i]->edge.push_back(j);
+        }
+    }
+}
+
 int main() {
     //freopen("E:\\just ice\\Compiling principle\\finite-automaton\\out.csv", "w", stdout);
     string s;
@@ -733,6 +876,7 @@ int main() {
 
     Dfa dfa;
     dfa.Nfa_to_Dfa(nfa);
+    dfa.min_Dfa();
     dfa.print();
 
     return 0;
