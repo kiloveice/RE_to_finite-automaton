@@ -583,7 +583,7 @@ private:
     vector<Fa_Node *> Node;
     vector<bool> used;
 
-    void dfs_del_useless(int now, bool okflag);
+    void dfs_del_unreachable_node(int now, bool okflag);
 };
 
 void Dfa::print() {
@@ -724,19 +724,19 @@ void Dfa::Nfa_to_Dfa(Nfa &nfa) {//NFA -> DFA
     }
 }
 
-void Dfa::dfs_del_useless(int now, bool okflag) {
+void Dfa::dfs_del_unreachable_node(int now, bool okflag) {
     if (used[now]) {
         return;
     }
     used[now] = true;
-    if (Node[now]->end) {
-        Node[now]->temp = okflag;
-    }
+//    if (Node[now]->end) {
+//        Node[now]->temp = okflag;
+//    }
     for (auto i:Node[now]->edge) {
-        dfs_del_useless(i.v->n, okflag);
-        if (Node[i.v->n]->temp == okflag) {
-            Node[now]->temp = okflag;
-        }
+        dfs_del_unreachable_node(i.v->n, okflag);
+//        if (Node[i.v->n]->temp == okflag) {
+//            Node[now]->temp = okflag;
+//        }
     }
 }
 
@@ -747,9 +747,34 @@ void Dfa::min_Dfa() {
     }
     //delete useless node
     bool okflag = !Node[1]->temp;
-    for (auto i:begin) {
+    for (auto i:begin) {//delete unreachable nodes
         if (!used[i->n]) {
-            dfs_del_useless(i->n, okflag);
+            dfs_del_unreachable_node(i->n, okflag);
+        }
+    }
+
+    int last_tot, tot;
+    for (last_tot = -1, tot = 0; last_tot != tot;) {//delete unterminated nodes
+        last_tot = tot;
+        for (int k = 1; k <= n; k++) {
+            auto &i = Node[k];
+            if (used[i->n]) {
+                if (i->temp == okflag) {
+                    continue;
+                }
+                if (i->end) {
+                    i->temp = okflag;
+                    tot++;
+                    continue;
+                }
+                for (auto j:i->edge) {
+                    if (j.v->temp == okflag) {
+                        i->temp = okflag;
+                        tot++;
+                        break;
+                    }
+                }
+            }
         }
     }
 
@@ -775,7 +800,7 @@ void Dfa::min_Dfa() {
     Node_num_edge to_tp;
     set<int> node_tp;
     //reach node set -> node set
-    int last_tot, tot;
+
     tot = 2;
     last_tot = 0;
     //end node set  and not end node set
