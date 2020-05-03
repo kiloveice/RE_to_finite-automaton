@@ -909,7 +909,7 @@ void Dfa::min_Dfa() {
 }
 
 int main() {
-    //freopen("E:\\just ice\\Compiling principle\\finite-automaton\\out.csv", "w", stdout);
+    freopen("E:\\just ice\\Compiling principle\\finite-automaton\\out.csv", "w", stdout);
     string s;
     Nfa nfa;
     cin >> s;
