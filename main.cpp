@@ -39,6 +39,22 @@ bool operator<(const Node_num &a, const Node_num &b) {
     return false;
 }
 
+class Node_num_edge {
+public:
+    set<pair<char, int> > n;
+};
+
+bool operator<(const Node_num_edge &a, const Node_num_edge &b) {
+    if (a.n.size() != b.n.size()) {
+        return a.n.size() < b.n.size();
+    }
+    for (auto i = a.n.begin(), j = b.n.begin(); i != a.n.end() && j != b.n.end(); i++, j++) {
+        if ((*i) != (*j)) {
+            return (*i) < (*j);
+        }
+    }
+    return false;
+}
 
 class Edge {
 public:
@@ -755,8 +771,8 @@ void Dfa::min_Dfa() {
 
     new_Node.push_back(NULL);
 
-    map<Node_num, set<int>> mp;
-    Node_num to_tp;
+    map<Node_num_edge, set<int>> mp;
+    Node_num_edge to_tp;
     set<int> node_tp;
     //reach node set -> node set
     int last_tot, tot;
@@ -782,7 +798,9 @@ void Dfa::min_Dfa() {
                 to_tp.n.clear();
                 for (auto k:Node[j]->edge) {//every edge
                     if (k.v->temp == okflag) {
-                        to_tp.n.insert(belong[k.v->n]);
+                        pair<char, int> pair_tp(k.c, belong[k.v->n]);
+                        //to_tp.n.insert(make_pair<k.c, belong[k.v->n]>);
+                        to_tp.n.insert(pair_tp);
                     }
                 }
                 mp[to_tp].insert(j);
@@ -818,8 +836,8 @@ void Dfa::min_Dfa() {
     end.clear();
 
     for (int q = 1; q <= tot; q++) {
-        int i = belong[q];
-        for (auto j:new_node_set[i]) {
+        for (auto j:new_node_set[q]) {
+            int i = belong[j];
             if (Node[j]->start) {
                 new_Node[i]->start = true;
                 begin.push_back(new_Node[i]);
